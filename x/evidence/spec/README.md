@@ -17,6 +17,8 @@ parent:
 4. **[Events](04_events.md)**
 5. **[Params](05_params.md)**
 6. **[BeginBlock](06_begin_block.md)**
+7. **[Client](07_client.md)**
+8. **[App Wiring](08_app_wiring.md)**
 
 ## Abstract
 

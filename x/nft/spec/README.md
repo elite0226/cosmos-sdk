@@ -20,3 +20,4 @@ parent:
 3. **[Messages](03_messages.md)**
     * [MsgSend](03_messages.md#MsgSend)
 4. **[Events](04_events.md)**
+5. **[App Wiring](05_app_wiring.md)**
