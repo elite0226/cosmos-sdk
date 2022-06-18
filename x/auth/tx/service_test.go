@@ -17,7 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/cosmos/cosmos-sdk/testutil"
+	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	"github.com/cosmos/cosmos-sdk/testutil/rest"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
@@ -28,6 +28,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	authtest "github.com/cosmos/cosmos-sdk/x/auth/client/testutil"
+	"github.com/cosmos/cosmos-sdk/x/auth/testutil"
 	bankcli "github.com/cosmos/cosmos-sdk/x/bank/client/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -48,11 +49,11 @@ type IntegrationTestSuite struct {
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up integration test suite")
 
-	cfg := network.DefaultConfig()
+	cfg, err := network.DefaultConfigWithAppConfig(testutil.AppConfig)
+	s.Require().NoError(err)
 	cfg.NumValidators = 1
 	s.cfg = cfg
 
-	var err error
 	s.network, err = network.New(s.T(), s.T().TempDir(), s.cfg)
 	s.Require().NoError(err)
 
@@ -242,8 +243,8 @@ func (s IntegrationTestSuite) TestGetTxEvents_GRPC() {
 			"with pagination",
 			&tx.GetTxsEventRequest{
 				Events: []string{bankMsgSendEventAction},
-				Page: 2,
-				Limit: 2,
+				Page:   2,
+				Limit:  2,
 			},
 			false, "", 1,
 		},
@@ -574,7 +575,7 @@ func (s *IntegrationTestSuite) TestSimMultiSigTx() {
 	s.Require().NoError(err)
 
 	// Save tx to file
-	multiGeneratedTxFile := testutil.WriteToNewTempFile(s.T(), multiGeneratedTx.String())
+	multiGeneratedTxFile := sdktestutil.WriteToNewTempFile(s.T(), multiGeneratedTx.String())
 
 	// Sign with account1
 	addr1, err := account1.GetAddress()
@@ -582,14 +583,14 @@ func (s *IntegrationTestSuite) TestSimMultiSigTx() {
 	val1.ClientCtx.HomeDir = strings.Replace(val1.ClientCtx.HomeDir, "simd", "simcli", 1)
 	account1Signature, err := authtest.TxSignExec(val1.ClientCtx, addr1, multiGeneratedTxFile.Name(), "--multisig", addr.String())
 	s.Require().NoError(err)
-	sign1File := testutil.WriteToNewTempFile(s.T(), account1Signature.String())
+	sign1File := sdktestutil.WriteToNewTempFile(s.T(), account1Signature.String())
 
 	// Sign with account2
 	addr2, err := account2.GetAddress()
 	s.Require().NoError(err)
 	account2Signature, err := authtest.TxSignExec(val1.ClientCtx, addr2, multiGeneratedTxFile.Name(), "--multisig", addr.String())
 	s.Require().NoError(err)
-	sign2File := testutil.WriteToNewTempFile(s.T(), account2Signature.String())
+	sign2File := sdktestutil.WriteToNewTempFile(s.T(), account2Signature.String())
 
 	// multisign tx
 	val1.ClientCtx.Offline = false

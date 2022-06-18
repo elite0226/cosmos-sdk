@@ -8,38 +8,49 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
-	"github.com/cosmos/cosmos-sdk/testutil"
+	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/depinject"
+	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 func TestGetCommandEncode(t *testing.T) {
-	encodingConfig := simappparams.MakeTestEncodingConfig()
+	var (
+		cdc         codec.Codec
+		legacyAmino *codec.LegacyAmino
+		txConfig    client.TxConfig
+	)
+
+	err := depinject.Inject(testutil.AppConfig,
+		&txConfig,
+		&legacyAmino,
+		&cdc,
+	)
+	require.NoError(t, err)
 
 	cmd := GetEncodeCommand()
-	_ = testutil.ApplyMockIODiscardOutErr(cmd)
+	_ = sdktestutil.ApplyMockIODiscardOutErr(cmd)
 
-	authtypes.RegisterLegacyAminoCodec(encodingConfig.Amino)
-	sdk.RegisterLegacyAminoCodec(encodingConfig.Amino)
-
-	txCfg := encodingConfig.TxConfig
+	authtypes.RegisterLegacyAminoCodec(legacyAmino)
+	sdk.RegisterLegacyAminoCodec(legacyAmino)
 
 	// Build a test transaction
-	builder := txCfg.NewTxBuilder()
+	builder := txConfig.NewTxBuilder()
 	builder.SetGasLimit(50000)
 	builder.SetFeeAmount(sdk.Coins{sdk.NewInt64Coin("atom", 150)})
 	builder.SetMemo("foomemo")
-	jsonEncoded, err := txCfg.TxJSONEncoder()(builder.GetTx())
+	jsonEncoded, err := txConfig.TxJSONEncoder()(builder.GetTx())
 	require.NoError(t, err)
 
-	txFile := testutil.WriteToNewTempFile(t, string(jsonEncoded))
+	txFile := sdktestutil.WriteToNewTempFile(t, string(jsonEncoded))
 	txFileName := txFile.Name()
 
 	ctx := context.Background()
 	clientCtx := client.Context{}.
-		WithTxConfig(encodingConfig.TxConfig).
-		WithCodec(encodingConfig.Codec)
+		WithTxConfig(txConfig).
+		WithCodec(cdc)
 	ctx = context.WithValue(ctx, client.ClientContextKey, &clientCtx)
 
 	cmd.SetArgs([]string{txFileName})
@@ -48,22 +59,32 @@ func TestGetCommandEncode(t *testing.T) {
 }
 
 func TestGetCommandDecode(t *testing.T) {
-	encodingConfig := simappparams.MakeTestEncodingConfig()
+	var (
+		cdc         codec.Codec
+		legacyAmino *codec.LegacyAmino
+		txConfig    client.TxConfig
+	)
+
+	err := depinject.Inject(testutil.AppConfig,
+		&txConfig,
+		&legacyAmino,
+		&cdc,
+	)
+	require.NoError(t, err)
 
 	clientCtx := client.Context{}.
-		WithTxConfig(encodingConfig.TxConfig).
-		WithCodec(encodingConfig.Codec)
+		WithTxConfig(txConfig).
+		WithCodec(cdc)
 
 	cmd := GetDecodeCommand()
-	_ = testutil.ApplyMockIODiscardOutErr(cmd)
+	_ = sdktestutil.ApplyMockIODiscardOutErr(cmd)
 
-	sdk.RegisterLegacyAminoCodec(encodingConfig.Amino)
+	sdk.RegisterLegacyAminoCodec(legacyAmino)
 
-	txCfg := encodingConfig.TxConfig
-	clientCtx = clientCtx.WithTxConfig(txCfg)
+	clientCtx = clientCtx.WithTxConfig(txConfig)
 
 	// Build a test transaction
-	builder := txCfg.NewTxBuilder()
+	builder := txConfig.NewTxBuilder()
 	builder.SetGasLimit(50000)
 	builder.SetFeeAmount(sdk.Coins{sdk.NewInt64Coin("atom", 150)})
 	builder.SetMemo("foomemo")

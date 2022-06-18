@@ -9,14 +9,16 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	"github.com/cosmos/cosmos-sdk/testutil"
+	"github.com/cosmos/cosmos-sdk/depinject"
+	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	"github.com/cosmos/cosmos-sdk/x/auth/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
@@ -55,31 +57,37 @@ func TestDefaultTxEncoder(t *testing.T) {
 
 func TestReadTxFromFile(t *testing.T) {
 	t.Parallel()
-	encodingConfig := simapp.MakeTestEncodingConfig()
 
-	txCfg := encodingConfig.TxConfig
+	var (
+		interfaceRegistry codectypes.InterfaceRegistry
+		txConfig          client.TxConfig
+	)
+
+	err := depinject.Inject(testutil.AppConfig, &txConfig)
+	require.NoError(t, err)
+
 	clientCtx := client.Context{}
-	clientCtx = clientCtx.WithInterfaceRegistry(encodingConfig.InterfaceRegistry)
-	clientCtx = clientCtx.WithTxConfig(txCfg)
+	clientCtx = clientCtx.WithInterfaceRegistry(interfaceRegistry)
+	clientCtx = clientCtx.WithTxConfig(txConfig)
 
 	feeAmount := sdk.Coins{sdk.NewInt64Coin("atom", 150)}
 	gasLimit := uint64(50000)
 	memo := "foomemo"
 
-	txBuilder := txCfg.NewTxBuilder()
+	txBuilder := txConfig.NewTxBuilder()
 	txBuilder.SetFeeAmount(feeAmount)
 	txBuilder.SetGasLimit(gasLimit)
 	txBuilder.SetMemo(memo)
 
 	// Write it to the file
-	encodedTx, err := txCfg.TxJSONEncoder()(txBuilder.GetTx())
+	encodedTx, err := txConfig.TxJSONEncoder()(txBuilder.GetTx())
 	require.NoError(t, err)
 
-	jsonTxFile := testutil.WriteToNewTempFile(t, string(encodedTx))
+	jsonTxFile := sdktestutil.WriteToNewTempFile(t, string(encodedTx))
 	// Read it back
 	decodedTx, err := authclient.ReadTxFromFile(clientCtx, jsonTxFile.Name())
 	require.NoError(t, err)
-	txBldr, err := txCfg.WrapTxBuilder(decodedTx)
+	txBldr, err := txConfig.WrapTxBuilder(decodedTx)
 	require.NoError(t, err)
 	t.Log(txBuilder.GetTx())
 	t.Log(txBldr.GetTx())
@@ -89,18 +97,20 @@ func TestReadTxFromFile(t *testing.T) {
 
 func TestBatchScanner_Scan(t *testing.T) {
 	t.Parallel()
-	encodingConfig := simapp.MakeTestEncodingConfig()
 
-	txGen := encodingConfig.TxConfig
+	var txConfig client.TxConfig
+	err := depinject.Inject(testutil.AppConfig, &txConfig)
+	require.NoError(t, err)
+
 	clientCtx := client.Context{}
-	clientCtx = clientCtx.WithTxConfig(txGen)
+	clientCtx = clientCtx.WithTxConfig(txConfig)
 
 	// generate some tx JSON
-	bldr := txGen.NewTxBuilder()
+	bldr := txConfig.NewTxBuilder()
 	bldr.SetGasLimit(50000)
 	bldr.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin("atom", 150)))
 	bldr.SetMemo("foomemo")
-	txJson, err := txGen.TxJSONEncoder()(bldr.GetTx())
+	txJson, err := txConfig.TxJSONEncoder()(bldr.GetTx())
 	require.NoError(t, err)
 
 	// use the tx JSON to generate some tx batches (it doesn't matter that we use the same JSON because we don't care about the actual context)

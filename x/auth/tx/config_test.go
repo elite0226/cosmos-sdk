@@ -1,4 +1,4 @@
-package tx
+package tx_test
 
 import (
 	"testing"
@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/testutil"
+	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 )
 
 func TestGenerator(t *testing.T) {
@@ -18,5 +19,5 @@ func TestGenerator(t *testing.T) {
 	std.RegisterInterfaces(interfaceRegistry)
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &testdata.TestMsg{})
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
-	suite.Run(t, testutil.NewTxConfigTestSuite(NewTxConfig(protoCodec, DefaultSignModes)))
+	suite.Run(t, testutil.NewTxConfigTestSuite(tx.NewTxConfig(protoCodec, tx.DefaultSignModes)))
 }
